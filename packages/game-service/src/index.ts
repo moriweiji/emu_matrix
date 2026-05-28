@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import gameRoutes from './routes/games';
+import adminRoutes from './routes/admin';
 import { closePool } from './database';
 import { closeRedis } from './redis';
 
@@ -14,6 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/games', gameRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'game-service', timestamp: new Date().toISOString() });

@@ -55,17 +55,32 @@ const router = createRouter({
           component: () => import('@/views/user/RecordingsView.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'admin',
+          name: 'admin',
+          component: () => import('@/views/admin/AdminView.vue'),
+          meta: { requiresAuth: true, requiresAdmin: true },
+        },
       ],
     },
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+let authInitialized = false
+
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+
+  if (!authInitialized && authStore.accessToken && !authStore.user) {
+    authInitialized = true
+    await authStore.fetchUser()
+  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (to.meta.guest && authStore.isAuthenticated) {
+    next({ name: 'lobby' })
+  } else if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {
     next({ name: 'lobby' })
   } else {
     next()

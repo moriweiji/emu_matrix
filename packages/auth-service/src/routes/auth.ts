@@ -91,7 +91,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
   try {
     const result = await query(
-      'SELECT id, username, email, password_hash, avatar_url, status FROM users WHERE username = $1 OR email = $1',
+      'SELECT id, username, email, password_hash, avatar_url, status, role FROM users WHERE username = $1 OR email = $1',
       [username]
     );
 
@@ -128,6 +128,7 @@ router.post('/login', async (req: Request, res: Response) => {
       email: user.email,
       avatar_url: user.avatar_url,
       status: user.status,
+      role: user.role,
     }), 3600);
 
     const { password_hash, ...userWithoutPassword } = user;
@@ -202,7 +203,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const result = await query('SELECT id, username, email, avatar_url, status, last_login_at, created_at, updated_at FROM users WHERE id = $1', [req.userId]);
+    const result = await query('SELECT id, username, email, avatar_url, status, role, last_login_at, created_at, updated_at FROM users WHERE id = $1', [req.userId]);
     if (result.rows.length === 0) {
       res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse('NOT_FOUND', 'User not found'));
       return;

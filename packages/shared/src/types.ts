@@ -6,6 +6,7 @@ export interface User {
   email: string;
   avatar_url: string | null;
   status: string;
+  role: string;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;

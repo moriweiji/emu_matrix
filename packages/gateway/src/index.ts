@@ -10,7 +10,8 @@ const app = express();
 const PORT = process.env.PORT_GATEWAY || 3000;
 
 app.use(cors());
-app.use(express.json());
+
+app.set('trust proxy', 1);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -57,6 +58,12 @@ app.use('/api/recordings', apiLimiter, createProxyMiddleware({
   target: mediaServiceUrl,
   changeOrigin: true,
   pathRewrite: { '^/api/recordings': '/api/recordings' },
+}));
+
+app.use('/api/admin', apiLimiter, createProxyMiddleware({
+  target: gameServiceUrl,
+  changeOrigin: true,
+  pathRewrite: { '^/api/admin': '/api/admin' },
 }));
 
 app.get('/health', (_req, res) => {

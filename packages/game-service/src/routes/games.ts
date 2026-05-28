@@ -44,7 +44,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const conditions: string[] = ["status = 'active'"];
+    const conditions: string[] = ["status = 'active'", "is_deleted = false"];
     const params: unknown[] = [];
     let paramIndex = 1;
 
@@ -158,7 +158,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const result = await query(
-      'SELECT id, name, name_en, platform, cover_url, rom_url, rom_size, rom_md5, emulator_core, category, tags, description, release_year, publisher, play_count, favorite_count, status, created_at FROM games WHERE id = $1',
+      'SELECT id, name, name_en, platform, cover_url, rom_url, rom_size, rom_md5, emulator_core, category, tags, description, release_year, publisher, play_count, favorite_count, status, created_at FROM games WHERE id = $1 AND is_deleted = false',
       [req.params.id]
     );
 
@@ -178,7 +178,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
 
 router.get('/:id/rom', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const result = await query('SELECT rom_url, name, platform FROM games WHERE id = $1 AND status = $2', [req.params.id, 'active']);
+    const result = await query('SELECT rom_url, name, platform FROM games WHERE id = $1 AND status = $2 AND is_deleted = false', [req.params.id, 'active']);
     if (result.rows.length === 0) {
       res.status(HTTP_STATUS.NOT_FOUND).json(createErrorResponse('NOT_FOUND', 'Game not found'));
       return;

@@ -74,8 +74,8 @@ EMU_Matrix is a cloud-based retro game platform built with a microservices archi
        │                 │              │              │              │
        │                 ▼              ▼              ▼              ▼
        │            ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-       │            │PostgreSQL│   │  Redis   │   │  MinIO   │   │  Redis   │
-       │            │   :5432  │   │  :6379   │   │  :9000   │   │  :6379   │
+       │            │PostgreSQL│   │  Redis   │   │ Local FS │   │  Redis   │
+       │            │   :5432  │   │  :6379   │   │ /media   │   │  :6379   │
        │            └──────────┘   └──────────┘   └──────────┘   └──────────┘
        │
        ├─────────────┐
@@ -94,7 +94,7 @@ EMU_Matrix is a cloud-based retro game platform built with a microservices archi
 | **Auth Service** | 3001 | User registration/login, JWT token management |
 | **Game Service** | 3002 | Game listing, ROM management, platform validation |
 | **Save Service** | 3003 | Cloud save CRUD, save slot management |
-| **Media Service** | 3004 | Screenshot/recording upload, MinIO object storage |
+| **Media Service** | 3004 | Screenshot/recording upload, local file storage |
 | **WS Service** | 3005 | WebSocket signaling, room management, WebRTC relay |
 
 ## Tech Stack
@@ -110,7 +110,7 @@ EMU_Matrix is a cloud-based retro game platform built with a microservices archi
 | Backend Framework | Express + TypeScript |
 | Database | PostgreSQL 15 |
 | Cache | Redis 7 |
-| Object Storage | MinIO |
+| File Storage | Local File System |
 | Emulator | EmulatorJS |
 | Authentication | JWT (jsonwebtoken) + bcryptjs |
 | Containerization | Docker + Docker Compose |
@@ -159,7 +159,7 @@ docker-compose up -d
 
 - Frontend: http://localhost
 - API Gateway: http://localhost:3000/health
-- MinIO Console: http://localhost:9001
+- Admin Page: http://localhost/admin
 
 ### Option 2: Local Development
 
@@ -233,7 +233,8 @@ EMU_Matrix/
 │   └── migrations/           # Database migration scripts
 │       ├── 001_init.sql      # Base table schema
 │       ├── 002_seed_games.sql # NES/MD/SNES seed games
-│       └── 003_add_gb_gba_games.sql # GB/GBA seed games
+│       ├── 003_add_gb_gba_games.sql # GB/GBA seed games
+│       └── 004_admin_and_soft_delete.sql # Admin/soft delete/audit logs
 ├── packages/
 │   ├── shared/               # Shared types, constants, utilities
 │   │   └── src/
@@ -247,6 +248,7 @@ EMU_Matrix/
 │   │       │   ├── auth/     # Login/Register
 │   │       │   ├── game/     # Lobby/Game Room
 │   │       │   └── user/     # Profile/Saves/Screenshots/Recordings
+│   │       │   └── admin/    # Admin ROM management
 │   │       ├── stores/       # Pinia state management
 │   │       └── router/       # Route configuration
 │   ├── auth-service/         # Authentication microservice
@@ -298,6 +300,19 @@ EMU_Matrix/
 | POST | `/api/recordings` | Upload recording |
 | GET | `/api/recordings` | Recording list |
 
+### Admin
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/admin/roms` | Upload ROM with cover image |
+| GET | `/api/admin/roms` | ROM list (pagination, search, filter) |
+| GET | `/api/admin/roms/:id` | ROM detail |
+| PUT | `/api/admin/roms/:id` | Update ROM info |
+| PATCH | `/api/admin/roms/:id/status` | Enable/disable ROM |
+| DELETE | `/api/admin/roms/:id` | Soft delete ROM |
+| POST | `/api/admin/roms/batch-delete` | Batch soft delete |
+| GET | `/api/admin/audit-logs` | Audit log query |
+
 ## Common Commands
 
 ```bash
@@ -336,7 +351,9 @@ Verify the API Gateway is running by visiting http://localhost:3000/health. In l
 
 ### Q: How do I upload ROM files?
 
-ROM files must be placed in the `emu-matrix` bucket in MinIO object storage. You can upload them via the MinIO Console (http://localhost:9001, default credentials: `minioadmin` / `minioadmin`), then configure the corresponding `rom_url` in the `games` database table.
+ROM files can be uploaded via the admin page (http://localhost/admin), or manually placed in the local storage directory (default `./data/storage`, configurable via the `STORAGE_PATH` environment variable), then configure the corresponding `rom_url` in the `games` database table. In Docker deployment mode, the storage directory is mounted at `/data/storage`.
+
+To use the admin page, set a user as admin first: `UPDATE users SET role = 'admin' WHERE username = 'your_username';`
 
 ### Q: Which gamepads are supported?
 

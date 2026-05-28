@@ -1,10 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import mediaRoutes from './routes/media';
 import { closePool } from './database';
 import { closeRedis } from './redis';
-import { ensureBucket } from './storage';
+import { ensureBucket, STORAGE_PATH } from './storage';
 import { startRecordingWorker } from './workers/recording-worker';
 
 dotenv.config();
@@ -14,6 +15,15 @@ const PORT = process.env.PORT_MEDIA || 3004;
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/media', express.static(STORAGE_PATH, {
+  maxAge: '365d',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.webm') || filePath.endsWith('.mp4')) {
+      res.setHeader('Content-Type', 'video/webm');
+    }
+  },
+}));
 
 app.use('/api', mediaRoutes);
 
@@ -30,7 +40,7 @@ const server = app.listen(PORT, async () => {
   console.log(`Media service running on port ${PORT}`);
   try {
     await ensureBucket();
-    console.log('MinIO bucket ensured');
+    console.log('Storage directory ensured');
     startRecordingWorker();
     console.log('Recording worker started');
   } catch (error) {

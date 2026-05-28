@@ -74,8 +74,8 @@ EMU_Matrix 是一个基于微服务架构的云复古游戏平台，支持在浏
        │                 │              │              │              │
        │                 ▼              ▼              ▼              ▼
        │            ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-       │            │PostgreSQL│   │  Redis   │   │  MinIO   │   │  Redis   │
-       │            │   :5432  │   │  :6379   │   │  :9000   │   │  :6379   │
+       │            │PostgreSQL│   │  Redis   │   │ Local FS │   │  Redis   │
+       │            │   :5432  │   │  :6379   │   │ /media   │   │  :6379   │
        │            └──────────┘   └──────────┘   └──────────┘   └──────────┘
        │
        ├─────────────┐
@@ -94,7 +94,7 @@ EMU_Matrix 是一个基于微服务架构的云复古游戏平台，支持在浏
 | **Auth Service** | 3001 | 用户注册/登录，JWT 令牌管理 |
 | **Game Service** | 3002 | 游戏列表，ROM 管理，平台验证 |
 | **Save Service** | 3003 | 云存档 CRUD，存档位管理 |
-| **Media Service** | 3004 | 截图/录屏上传，MinIO 对象存储 |
+| **Media Service** | 3004 | 截图/录屏上传，本地文件存储 |
 | **WS Service** | 3005 | WebSocket 信令，房间管理，WebRTC 中继 |
 
 ## 技术栈
@@ -110,7 +110,7 @@ EMU_Matrix 是一个基于微服务架构的云复古游戏平台，支持在浏
 | 后端框架 | Express + TypeScript |
 | 数据库 | PostgreSQL 15 |
 | 缓存 | Redis 7 |
-| 对象存储 | MinIO |
+| 文件存储 | 本地文件系统 |
 | 模拟器 | EmulatorJS |
 | 认证 | JWT (jsonwebtoken) + bcryptjs |
 | 容器化 | Docker + Docker Compose |
@@ -159,7 +159,7 @@ docker-compose up -d
 
 - 前端界面：http://localhost
 - API 网关：http://localhost:3000/health
-- MinIO 控制台：http://localhost:9001
+- 管理员页面：http://localhost/admin
 
 ### 方式二：本地开发
 
@@ -233,7 +233,8 @@ EMU_Matrix/
 │   └── migrations/           # 数据库迁移脚本
 │       ├── 001_init.sql      # 基础表结构
 │       ├── 002_seed_games.sql # NES/MD/SNES 种子游戏
-│       └── 003_add_gb_gba_games.sql # GB/GBA 种子游戏
+│       ├── 003_add_gb_gba_games.sql # GB/GBA 种子游戏
+│       └── 004_admin_and_soft_delete.sql # 管理员/软删除/审计日志
 ├── packages/
 │   ├── shared/               # 共享类型、常量、工具函数
 │   │   └── src/
@@ -246,7 +247,8 @@ EMU_Matrix/
 │   │       ├── views/        # 页面组件
 │   │       │   ├── auth/     # 登录/注册
 │   │       │   ├── game/     # 游戏大厅/游戏房间
-│   │       │   └── user/     # 个人中心/存档/截图/录屏
+│   │       │   ├── user/     # 个人中心/存档/截图/录屏
+│   │       │   └── admin/    # 管理员 ROM 维护
 │   │       ├── stores/       # Pinia 状态管理
 │   │       └── router/       # 路由配置
 │   ├── auth-service/         # 认证微服务
@@ -298,6 +300,19 @@ EMU_Matrix/
 | POST | `/api/recordings` | 上传录屏 |
 | GET | `/api/recordings` | 录屏列表 |
 
+### 管理员相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/admin/roms` | 上传 ROM 及封面 |
+| GET | `/api/admin/roms` | ROM 列表（分页、搜索、筛选） |
+| GET | `/api/admin/roms/:id` | ROM 详情 |
+| PUT | `/api/admin/roms/:id` | 更新 ROM 信息 |
+| PATCH | `/api/admin/roms/:id/status` | 启用/停用 ROM |
+| DELETE | `/api/admin/roms/:id` | 逻辑删除 ROM |
+| POST | `/api/admin/roms/batch-delete` | 批量逻辑删除 |
+| GET | `/api/admin/audit-logs` | 操作日志查询 |
+
 ## 常用命令
 
 ```bash
@@ -336,7 +351,9 @@ docker-compose logs auth-service
 
 ### Q: ROM 文件如何上传？
 
-ROM 文件需放置在 MinIO 对象存储的 `emu-matrix` 存储桶中。可通过 MinIO 控制台（http://localhost:9001，默认账号 `minioadmin` / `minioadmin`）上传，然后在数据库 `games` 表中配置对应的 `rom_url`。
+ROM 文件可通过管理员页面上传（http://localhost/admin），也可手动放置在本地存储目录（默认 `./data/storage`，可通过 `STORAGE_PATH` 环境变量配置）中，然后在数据库 `games` 表中配置对应的 `rom_url`。Docker 部署模式下，存储目录挂载在 `/data/storage`。
+
+使用管理员页面需先将用户设为管理员：`UPDATE users SET role = 'admin' WHERE username = 'your_username';`
 
 ### Q: 支持哪些游戏手柄？
 

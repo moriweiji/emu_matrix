@@ -86,7 +86,7 @@ packages/frontend/dist/
 # Docker volumes
 postgres-data/
 redis-data/
-minio-data/
+storage-data/
 
 # Temporary files
 tmp/
